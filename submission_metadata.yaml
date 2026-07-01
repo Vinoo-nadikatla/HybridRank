@@ -1,0 +1,55 @@
+team_name: "Abhijayati"
+
+primary_contact:
+  name: "Team Abhijayati"
+  email: "nadikatlavinoothna46@gmail.com"
+  phone: "+91-XXXXXXXXXX"
+
+team_members:
+  - name: "Team Lead"
+    email: "nadikatlavinoothna46@gmail.com"
+    role: "ML Engineer / Team Lead"
+
+github_repo: "https://github.com/YOUR_USERNAME/hybridrank-abhijayati"
+sandbox_link: "https://huggingface.co/spaces/YOUR_USERNAME/hybridrank"
+
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+
+compute:
+  platform: "Local CPU"
+  cpu_cores: 4
+  ram_gb: 16
+  python_version: "3.11"
+  os: "Ubuntu 22.04 / Windows 11"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+ai_tools_used:
+  - "Claude (Anthropic)"
+
+ai_usage_summary: |
+  Used Claude for architecture discussion, code review, and deck generation.
+  No candidate data was fed to any LLM during ranking inference.
+  All ranking logic is deterministic rule-based scoring with pre-compiled regex.
+
+methodology_summary: |
+  HybridRank — multi-dimensional scoring that ranks candidates the way a great
+  recruiter would. Four dimensions: Technical Fit (30%), Career Quality (35%),
+  Behavioral Availability (25%), Logistics (10%).
+
+  Career Quality uses 29 pre-compiled regex patterns on career descriptions to
+  find who actually built retrieval/ranking systems, not just who listed skills.
+  Five hard disqualifier multipliers handle JD red flags: keyword stuffers (×0.15),
+  consulting-only backgrounds (×0.65), ghost candidates (×0.40), etc.
+
+  Runtime: ~90 seconds for 100K candidates on single CPU. No API calls. No network.
+  Zero pip dependencies. Fully deterministic.
+
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true

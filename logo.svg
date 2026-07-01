@@ -1,0 +1,37 @@
+<svg width="680" height="360" viewBox="0 0 680 360" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Abhijayati Team Logo</title>
+<desc>Team Abhijayati — HybridRank, India.runs 2024</desc>
+<circle cx="340" cy="152" r="108" fill="none" stroke="#1A1A2E" stroke-width="1.5"/>
+<circle cx="340" cy="152" r="100" fill="#0F0F23"/>
+<circle cx="340" cy="152" r="100" fill="none" stroke="#7B2FBE" stroke-width="0.6" opacity="0.5"/>
+<g stroke="#7B2FBE" stroke-width="1.2" opacity="0.7">
+  <line x1="340" y1="44" x2="340" y2="52"/><line x1="394" y1="59" x2="390" y2="66"/>
+  <line x1="435" y1="98" x2="429" y2="102"/><line x1="448" y1="152" x2="440" y2="152"/>
+  <line x1="435" y1="206" x2="429" y2="202"/><line x1="394" y1="245" x2="390" y2="238"/>
+  <line x1="340" y1="260" x2="340" y2="252"/><line x1="286" y1="245" x2="290" y2="238"/>
+  <line x1="245" y1="206" x2="251" y2="202"/><line x1="232" y1="152" x2="240" y2="152"/>
+  <line x1="245" y1="98" x2="251" y2="102"/><line x1="286" y1="59" x2="290" y2="66"/>
+</g>
+<circle cx="340" cy="152" r="78" fill="none" stroke="#7B2FBE" stroke-width="0.5" opacity="0.3"/>
+<rect x="322" y="190" width="36" height="5" rx="2.5" fill="#E9C46A"/>
+<line x1="340" y1="190" x2="340" y2="130" stroke="#E9C46A" stroke-width="5" stroke-linecap="round"/>
+<line x1="340" y1="152" x2="310" y2="122" stroke="#E9C46A" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="310" y1="122" x2="310" y2="108" stroke="#E9C46A" stroke-width="3.5" stroke-linecap="round"/>
+<circle cx="310" cy="106" r="4" fill="#E9C46A"/>
+<line x1="340" y1="152" x2="370" y2="122" stroke="#E9C46A" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="370" y1="122" x2="370" y2="108" stroke="#E9C46A" stroke-width="3.5" stroke-linecap="round"/>
+<circle cx="370" cy="106" r="4" fill="#E9C46A"/>
+<line x1="340" y1="130" x2="340" y2="100" stroke="#E9C46A" stroke-width="4" stroke-linecap="round"/>
+<polygon points="340,90 335,103 345,103" fill="#E9C46A"/>
+<circle cx="340" cy="90" r="5.5" fill="#C77DFF"/>
+<circle cx="340" cy="90" r="3" fill="#E9C46A"/>
+<circle cx="340" cy="152" r="5" fill="#C77DFF"/>
+<circle cx="310" cy="122" r="3" fill="#C77DFF" opacity="0.8"/>
+<circle cx="370" cy="122" r="3" fill="#C77DFF" opacity="0.8"/>
+<line x1="232" y1="152" x2="448" y2="152" stroke="#7B2FBE" stroke-width="0.4" opacity="0.25"/>
+<line x1="340" y1="44" x2="340" y2="260" stroke="#7B2FBE" stroke-width="0.4" opacity="0.25"/>
+<text x="340" y="296" font-family="Georgia, serif" font-weight="700" font-size="32" letter-spacing="0.06em" fill="#1A1A2E" text-anchor="middle">ABHIJAYATI</text>
+<line x1="130" y1="285" x2="236" y2="285" stroke="#7B2FBE" stroke-width="0.8"/>
+<line x1="444" y1="285" x2="550" y2="285" stroke="#7B2FBE" stroke-width="0.8"/>
+<text x="340" y="320" font-family="Georgia, serif" font-size="9.5" letter-spacing="0.28em" fill="#7B2FBE" text-anchor="middle">HYBRIDRANK  ·  INDIA.RUNS 2024</text>
+</svg>

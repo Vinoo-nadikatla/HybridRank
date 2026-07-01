@@ -1,0 +1,3 @@
+# rank.py has ZERO external dependencies — uses Python stdlib only
+# For the Streamlit demo app (app.py) only:
+streamlit>=1.28.0
