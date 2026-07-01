@@ -99,6 +99,8 @@ st.markdown("""
   <span class="tag">📊 100K Candidates Ranked</span>
   <span class="tag">🎯 4-Dimensional Scoring</span>
   <span class="tag">🛡️ 5 Anti-Fraud Rules</span>
+  <span class="tag">🔍 Honeypot Detection</span>
+  <span class="tag">📡 All 23 Redrob Signals</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -194,8 +196,8 @@ st.markdown('<div class="section-title">⚙️ Scoring Architecture</div>', unsa
 cols = st.columns(4)
 for col, (icon, title, weight, color, desc) in zip(cols, [
     ("🔬","Technical Fit","30%","#7b2fbe","Core skills weighted by proficiency × endorsements × duration. frozenset O(1) lookup over 40+ AI/retrieval skills."),
-    ("📈","Career Quality","35%","#e9c46a","Title fit · Product vs consulting · 29 regex patterns scan career descriptions for real retrieval/ranking work."),
-    ("📡","Behavioral","25%","#4ade80","Last active · Open-to-work · Response rate · Interview completion · Profile completeness score."),
+    ("📈","Career Quality","35%","#e9c46a","Title fit · Product vs consulting · 31 regex patterns scan career descriptions for real retrieval/ranking work · Education tier · Job-hopping analysis."),
+    ("📡","Behavioral","25%","#4ade80","All 23 Redrob signals: recency · open-to-work · response rate · interview completion · market demand (saved/viewed/searched) · social proof · offer acceptance."),
     ("📍","Logistics","10%","#60a5fa","India/Pune/Noida location · Notice period · Work mode preference · Salary range fit."),
 ]):
     col.markdown(f"""
@@ -205,6 +207,39 @@ for col, (icon, title, weight, color, desc) in zip(cols, [
       <div style="font-weight:600; color:#f1f5f9; margin:4px 0 10px;">{title}</div>
       <div style="color:#9d7fd4; font-size:0.82rem; line-height:1.5;">{desc}</div>
     </div>""", unsafe_allow_html=True)
+
+# ── HONEYPOT DETECTION ────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🔍 Honeypot Detection — Stage 3 Protection</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="insight-box">
+  <div style="color:#c9b8e8; font-size:0.88rem; margin-bottom:16px;">
+    The challenge embeds <strong style="color:#e9c46a;">~80 honeypot candidates</strong> with subtly impossible profiles.
+    Submissions with &gt;10% honeypots in top 100 are <strong style="color:#e76f51;">disqualified at Stage 3</strong>.
+    HybridRank detects three impossible-profile patterns:
+  </div>
+  <div style="display:flex; gap:16px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px; background:rgba(231,111,81,0.08); border:1px solid rgba(231,111,81,0.25); border-radius:10px; padding:14px;">
+      <div style="color:#e76f51; font-weight:700; margin-bottom:6px;">Pattern 1</div>
+      <div style="color:#f1f5f9; font-size:0.88rem; font-weight:600;">Expert Skills · 0 Months Used</div>
+      <div style="color:#9d7fd4; font-size:0.82rem; margin-top:6px;">3+ skills claimed "expert" with duration_months = 0 → impossible mastery.</div>
+    </div>
+    <div style="flex:1; min-width:200px; background:rgba(231,111,81,0.08); border:1px solid rgba(231,111,81,0.25); border-radius:10px; padding:14px;">
+      <div style="color:#e76f51; font-weight:700; margin-bottom:6px;">Pattern 2</div>
+      <div style="color:#f1f5f9; font-size:0.88rem; font-weight:600;">Skill Duration &gt; Career Length</div>
+      <div style="color:#9d7fd4; font-size:0.82rem; margin-top:6px;">Any single skill claimed for longer than total years_of_experience × 12.</div>
+    </div>
+    <div style="flex:1; min-width:200px; background:rgba(231,111,81,0.08); border:1px solid rgba(231,111,81,0.25); border-radius:10px; padding:14px;">
+      <div style="color:#e76f51; font-weight:700; margin-bottom:6px;">Pattern 3</div>
+      <div style="color:#f1f5f9; font-size:0.88rem; font-weight:600;">8+ Expert Skills · All &lt;12 Months</div>
+      <div style="color:#9d7fd4; font-size:0.82rem; margin-top:6px;">Mass "expert" claims with trivially short durations across the board.</div>
+    </div>
+  </div>
+  <div style="margin-top:14px; padding:10px 14px; background:rgba(74,222,128,0.08); border-radius:8px; border-left:3px solid #4ade80;">
+    <span style="color:#4ade80; font-weight:600;">Result: 0 honeypots in our top 100</span>
+    <span style="color:#c9b8e8;"> — honeypot candidates are scored 0.0005 and excluded from all rankings.</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ── LIVE UPLOAD ───────────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">🚀 Try It Live</div>', unsafe_allow_html=True)
