@@ -1,14 +1,10 @@
 team_name: "Abhijayati"
 
 primary_contact:
-  name: "Team Abhijayati"
+  name: "Vinoothna Nadikatla"
   email: "vinoothnanadikatla@gmail.com"
   phone: "+91-9490733309"
-
-team_members:
-  - name: "Team Lead"
-    email: "vinoothnanadikatla@gmail.com"
-    role: "ML Engineer / Team Lead"
+  role: "ML Engineer / Team Lead"
 
 github_repo: "https://github.com/Vinoo-nadikatla/HybridRank"
 sandbox_link: "https://vinoo123-hybridrank.hf.space/"
