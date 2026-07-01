@@ -2,16 +2,16 @@ team_name: "Abhijayati"
 
 primary_contact:
   name: "Team Abhijayati"
-  email: "nadikatlavinoothna46@gmail.com"
-  phone: "+91-XXXXXXXXXX"
+  email: "vinoothnanadikatla@gmail.com"
+  phone: "+91-9490733309"
 
 team_members:
   - name: "Team Lead"
-    email: "nadikatlavinoothna46@gmail.com"
+    email: "vinoothnanadikatla@gmail.com"
     role: "ML Engineer / Team Lead"
 
-github_repo: "https://github.com/YOUR_USERNAME/hybridrank-abhijayati"
-sandbox_link: "https://huggingface.co/spaces/YOUR_USERNAME/hybridrank"
+github_repo: "https://github.com/Vinoo-nadikatla/HybridRank"
+sandbox_link: "https://huggingface.co/spaces/Vinoo123/HybridRank"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
@@ -26,13 +26,6 @@ compute:
   pre_computation_required: false
   pre_computation_time_minutes: 0
 
-ai_tools_used:
-  - "Claude (Anthropic)"
-
-ai_usage_summary: |
-  Used Claude for architecture discussion, code review, and deck generation.
-  No candidate data was fed to any LLM during ranking inference.
-  All ranking logic is deterministic rule-based scoring with pre-compiled regex.
 
 methodology_summary: |
   HybridRank — multi-dimensional scoring that ranks candidates the way a great
