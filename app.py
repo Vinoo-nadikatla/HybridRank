@@ -1,165 +1,250 @@
 """
-HybridRank — Streamlit Demo App
-Team Abhijayati · india.runs Data & AI Challenge 2024
-
-Deploy to HuggingFace Spaces:
-  1. Create a new Space (Streamlit)
-  2. Upload this file + rank.py
-  3. Set title: HybridRank by Team Abhijayati
-
-pip install streamlit
-streamlit run app.py
+HybridRank — Demo App
+Team Abhijayati · india.runs Challenge
 """
 
 import streamlit as st
-import json
-import csv
-import io
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(__file__))
-import rank as R
+import json, csv, io, sys, os
 
 st.set_page_config(
-    page_title="HybridRank — Team Abhijayati",
+    page_title="HybridRank · Team Abhijayati",
     page_icon="🏆",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
 <style>
-.big-score { font-size: 2rem; font-weight: 700; color: #7B2FBE; }
-.rank-badge { background: #0F0F23; color: #E9C46A; padding: 4px 12px;
-              border-radius: 6px; font-weight: 700; font-size: 1.1rem; }
-.title-text { font-size: 1rem; font-weight: 600; color: #2D3E50; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+.hero {
+    background: linear-gradient(135deg, #1a0533 0%, #2d1052 50%, #0f0f23 100%);
+    border-radius: 16px; padding: 40px 48px; margin-bottom: 32px;
+    border: 1px solid #4a1a8a;
+}
+.hero h1 {
+    font-size: 2.8rem; font-weight: 800;
+    background: linear-gradient(90deg, #e9c46a, #f4a261, #e76f51);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin: 0 0 8px 0;
+}
+.hero p { color: #c9b8e8; font-size: 1.05rem; margin: 0; }
+.tag {
+    display: inline-block; background: rgba(233,196,106,0.15);
+    color: #e9c46a; border: 1px solid rgba(233,196,106,0.3);
+    border-radius: 20px; padding: 4px 14px; font-size: 0.82rem;
+    font-weight: 600; margin-top: 14px; margin-right: 8px;
+}
+.stat-box {
+    background: linear-gradient(135deg, #1a0533, #2d1052);
+    border: 1px solid #4a1a8a; border-radius: 12px;
+    padding: 20px 24px; text-align: center;
+}
+.stat-num { font-size: 2rem; font-weight: 800; color: #e9c46a; }
+.stat-label { font-size: 0.78rem; color: #c9b8e8; margin-top: 4px; font-weight: 500; }
+.section-title {
+    font-size: 1.3rem; font-weight: 700; color: #e9c46a;
+    margin: 32px 0 16px 0; border-bottom: 1px solid #2d1052; padding-bottom: 8px;
+}
+.cand-card {
+    background: linear-gradient(135deg, #0f0f23, #1a0533);
+    border: 1px solid #2d1052; border-radius: 12px;
+    padding: 18px 22px; margin-bottom: 12px;
+}
+.score-bar-bg { background: #1a0533; border-radius: 6px; height: 8px; overflow: hidden; margin-top: 6px; }
+.score-bar-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, #7b2fbe, #e9c46a); }
+.badge {
+    display: inline-block; border-radius: 20px;
+    padding: 2px 10px; font-size: 0.72rem; font-weight: 600;
+    margin-right: 5px; margin-top: 6px;
+}
+.badge-ai { background: rgba(123,47,190,0.25); color: #c084fc; border: 1px solid rgba(123,47,190,0.4); }
+.badge-open { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+.badge-co { background: rgba(233,196,106,0.15); color: #e9c46a; border: 1px solid rgba(233,196,106,0.3); }
+.badge-notice { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+.insight-box {
+    background: linear-gradient(135deg, #0f0f23, #1a0533);
+    border: 1px solid #2d1052; border-radius: 12px; padding: 20px 24px;
+}
+.insight-label { color: #c9b8e8; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; }
+.insight-bar-bg { background: #0f0f23; border-radius: 4px; height: 10px; overflow: hidden; }
+.insight-bar { height: 100%; border-radius: 4px; }
+#MainMenu, footer, header { visibility: hidden; }
+.block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ───────────────────────────────────────────────────────────────────
-col_logo, col_title = st.columns([1, 5])
-with col_title:
-    st.title("🏆 HybridRank")
-    st.markdown("**Team Abhijayati** · india.runs Data & AI Challenge 2024  \n"
-                "*Intelligent Candidate Ranking — Beyond Keywords*")
+# ── Pre-loaded top results ────────────────────────────────────────────────────
+TOP_RESULTS = [
+    {"rank":1,"id":"CAND_0011687","score":0.9950,"title":"Senior NLP Engineer","company":"Niramai","yrs":7.8,"skills":5,"github":76.3,"response":89,"open":True,"notice":15},
+    {"rank":2,"id":"CAND_0002025","score":0.9782,"title":"Senior AI Engineer","company":"Apple","yrs":5.9,"skills":6,"github":96.9,"response":80,"open":True,"notice":None},
+    {"rank":3,"id":"CAND_0064326","score":0.9408,"title":"Search Engineer","company":"Sarvam AI","yrs":7.6,"skills":6,"github":None,"response":94,"open":True,"notice":None},
+    {"rank":4,"id":"CAND_0039754","score":0.9332,"title":"Senior Applied Scientist","company":"Meta","yrs":16.2,"skills":7,"github":77.5,"response":81,"open":True,"notice":None},
+    {"rank":5,"id":"CAND_0041669","score":0.8994,"title":"Recommendation Systems Engineer","company":"CRED","yrs":8.0,"skills":6,"github":70.9,"response":77,"open":True,"notice":None},
+    {"rank":6,"id":"CAND_0088025","score":0.8642,"title":"Staff ML Engineer","company":"Yellow.ai","yrs":8.6,"skills":7,"github":74.6,"response":83,"open":True,"notice":90},
+    {"rank":7,"id":"CAND_0046525","score":0.8579,"title":"Senior ML Engineer","company":"Genpact AI","yrs":6.1,"skills":4,"github":None,"response":88,"open":True,"notice":None},
+    {"rank":8,"id":"CAND_0018499","score":0.8524,"title":"Senior ML Engineer","company":"Zomato","yrs":7.2,"skills":8,"github":94.8,"response":None,"open":True,"notice":15},
+    {"rank":9,"id":"CAND_0027691","score":0.8245,"title":"NLP Engineer","company":"Haptik","yrs":6.5,"skills":5,"github":None,"response":None,"open":True,"notice":15},
+    {"rank":10,"id":"CAND_0052328","score":0.8130,"title":"Recommendation Systems Engineer","company":"Amazon","yrs":6.5,"skills":4,"github":77.6,"response":79,"open":True,"notice":None},
+]
 
-st.divider()
+# ── HERO ─────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="hero">
+  <h1>🏆 HybridRank</h1>
+  <p>AI Candidate Ranking · <strong style="color:#e9c46a">india.runs Challenge</strong></p>
+  <p style="color:#9d7fd4; font-size:0.9rem; margin-top:6px;">अभिजयति — To Be Victorious · Team Abhijayati</p>
+  <span class="tag">⚡ Pure Python · No GPU · No API</span>
+  <span class="tag">📊 100K Candidates Ranked</span>
+  <span class="tag">🎯 4-Dimensional Scoring</span>
+  <span class="tag">🛡️ 5 Anti-Fraud Rules</span>
+</div>
+""", unsafe_allow_html=True)
 
-# ── Sidebar controls ─────────────────────────────────────────────────────────
-with st.sidebar:
-    st.header("⚙️ Settings")
-    top_n = st.slider("Candidates to rank", 10, 100, 20, step=10)
-    st.divider()
-    st.markdown("**Scoring weights**")
-    w_tech = st.slider("Technical Fit", 0.0, 1.0, 0.30, step=0.05)
-    w_career = st.slider("Career Quality", 0.0, 1.0, 0.35, step=0.05)
-    w_behav = st.slider("Behavioral", 0.0, 1.0, 0.25, step=0.05)
-    w_log = st.slider("Logistics", 0.0, 1.0, 0.10, step=0.05)
-    total = w_tech + w_career + w_behav + w_log
-    if abs(total - 1.0) > 0.01:
-        st.warning(f"Weights sum to {total:.2f} — should be 1.0")
-    st.divider()
-    st.caption("HybridRank runs fully on CPU — no API calls, no embeddings model needed.")
+# ── STATS ROW ────────────────────────────────────────────────────────────────
+c1, c2, c3, c4, c5 = st.columns(5)
+for col, (num, label) in zip([c1,c2,c3,c4,c5], [
+    ("100,000", "Candidates Processed"),
+    ("775", "Real AI/ML Profiles · 0.78%"),
+    ("~3,200", "Keyword Stuffers Caught"),
+    ("9,745", "Consulting-Only Filtered"),
+    ("< 90s", "Runtime · Single CPU"),
+]):
+    col.markdown(f'<div class="stat-box"><div class="stat-num">{num}</div><div class="stat-label">{label}</div></div>', unsafe_allow_html=True)
 
-# ── File uploader ────────────────────────────────────────────────────────────
-st.subheader("📂 Upload Candidates")
-uploaded = st.file_uploader(
-    "Upload candidates.jsonl (or a sample subset)",
-    type=["jsonl", "json"],
-    help="Upload the full candidates.jsonl or a subset for demo"
-)
+# ── TOP CANDIDATES ────────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🥇 Top 10 Ranked Candidates — Senior AI Engineer · Redrob AI</div>', unsafe_allow_html=True)
 
-if uploaded is not None:
-    with st.spinner("Scoring candidates…"):
-        content = uploaded.read().decode("utf-8")
-        lines = [l for l in content.splitlines() if l.strip()]
+for r in TOP_RESULTS:
+    medal = "🥇" if r["rank"]==1 else "🥈" if r["rank"]==2 else "🥉" if r["rank"]==3 else str(r["rank"])
+    rank_color = "#e9c46a" if r["rank"]==1 else "#b0bec5" if r["rank"]==2 else "#cd7f32" if r["rank"]==3 else "#7b2fbe"
+    badges = f'<span class="badge badge-ai">🧠 {r["skills"]} AI Skills</span>'
+    if r["open"]: badges += '<span class="badge badge-open">✅ Open to Work</span>'
+    badges += f'<span class="badge badge-co">🏢 {r["company"]}</span>'
+    if r["notice"] is not None:
+        badges += f'<span class="badge badge-notice">📅 {"Immediate" if r["notice"]<=15 else str(r["notice"])+"d notice"}</span>'
+    if r["github"]: badges += f'<span class="badge badge-ai">⚡ GitHub {r["github"]}</span>'
 
-        # Override weights from sidebar
-        R.WEIGHTS = {"technical": w_tech, "career": w_career,
-                     "behavioral": w_behav, "logistics": w_log}
+    st.markdown(f"""
+    <div class="cand-card">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div style="background:linear-gradient(135deg,{rank_color}33,{rank_color}11); color:{rank_color};
+             font-weight:800; font-size:1.2rem; width:42px; height:42px; border-radius:50%;
+             display:flex; align-items:center; justify-content:center; flex-shrink:0;
+             border:2px solid {rank_color}55;">{medal}</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline;">
+            <div>
+              <span style="font-weight:700; color:#f1f5f9; font-size:1.05rem;">{r["title"]}</span>
+              <span style="color:#9d7fd4; font-size:0.88rem; margin-left:10px;">{r["yrs"]} yrs</span>
+            </div>
+            <span style="font-size:1.5rem; font-weight:800; color:#e9c46a;">{r["score"]:.4f}</span>
+          </div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:{int(r['score']*100)}%;"></div></div>
+          <div style="margin-top:8px;">{badges}</div>
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
 
-        results = []
-        errors = 0
-        for line in lines:
-            try:
-                c = json.loads(line)
-                results.append(R.score_candidate(c))
-            except Exception:
-                errors += 1
+# ── WHY NOT KEYWORDS ─────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🛡️ Why Keyword Matching Fails — What HybridRank Catches</div>', unsafe_allow_html=True)
+col1, col2 = st.columns(2)
 
-    st.success(f"✅ Scored **{len(results):,}** candidates ({errors} skipped)")
+with col1:
+    st.markdown("""
+    <div class="insight-box">
+      <div style="font-weight:700; color:#e9c46a; margin-bottom:14px;">Dataset Reality (100K candidates)</div>
+      <div class="insight-label">Real AI/ML Engineers · 0.78%</div>
+      <div class="insight-bar-bg"><div class="insight-bar" style="width:5%; background:#7b2fbe;"></div></div>
+      <div class="insight-label" style="margin-top:12px;">Keyword Stuffers (wrong title + AI skills) · 3.2%</div>
+      <div class="insight-bar-bg"><div class="insight-bar" style="width:16%; background:#e76f51;"></div></div>
+      <div class="insight-label" style="margin-top:12px;">Consulting-Only Background · 9.7%</div>
+      <div class="insight-bar-bg"><div class="insight-bar" style="width:48%; background:#f4a261;"></div></div>
+      <div class="insight-label" style="margin-top:12px;">Ghost Candidates (inactive >180d) · 18%</div>
+      <div class="insight-bar-bg"><div class="insight-bar" style="width:90%; background:#457b9d;"></div></div>
+      <div style="margin-top:16px; padding:12px; background:rgba(233,196,106,0.08); border-radius:8px; border-left:3px solid #e9c46a;">
+        <span style="color:#e9c46a; font-weight:600;">A keyword ranker</span>
+        <span style="color:#c9b8e8;"> puts Marketing Managers listing "RAG, Pinecone, Embeddings" at #1. HybridRank collapses them to near-zero.</span>
+      </div>
+    </div>""", unsafe_allow_html=True)
 
-    # Normalize and pick top N
-    top = sorted(results, key=lambda r: -r["score"])[:top_n]
-    mn, mx = top[-1]["score"], top[0]["score"]
-    rng = mx - mn if mx > mn else 1.0
-    for r in top:
-        r["norm"] = round(0.20 + (r["score"] - mn) / rng * (0.995 - 0.20), 4)
-    top.sort(key=lambda r: (-r["norm"], r["candidate_id"]))
+with col2:
+    st.markdown("""
+    <div class="insight-box">
+      <div style="font-weight:700; color:#e9c46a; margin-bottom:14px;">5 Hard Disqualifier Multipliers</div>
+      """ + "".join([f"""
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:#c9b8e8; font-size:0.88rem;">{label}</span>
+          <span style="color:{color}; font-weight:700;">{mult}</span>
+        </div>
+        <div class="insight-bar-bg" style="margin-top:4px;"><div class="insight-bar" style="width:{pct}%; background:{color};"></div></div>
+      </div>""" for label, mult, pct, color in [
+          ("🚨 Keyword Stuffer (wrong title + no retrieval history)", "×0.15", 15, "#e76f51"),
+          ("🏢 Consulting-Only (TCS / Infosys / Wipro / Accenture)", "×0.65", 65, "#f4a261"),
+          ("👻 Ghost Candidate (inactive >180d + not open to work)", "×0.40", 40, "#457b9d"),
+          ("🌍 Outside India, won't relocate", "×0.30", 30, "#9d7fd4"),
+          ("📵 Recruiter Black Hole (<10% response rate)", "×0.70", 70, "#e9c46a"),
+      ]]) + """
+    </div>""", unsafe_allow_html=True)
 
-    # ── Stats row ──
-    st.divider()
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total scored", f"{len(results):,}")
-    c2.metric("Shortlisted", top_n)
-    c3.metric("#1 score", f"{top[0]['norm']:.4f}")
-    c4.metric("#1 candidate", top[0]["candidate_id"])
+# ── SCORING ARCHITECTURE ─────────────────────────────────────────────────────
+st.markdown('<div class="section-title">⚙️ Scoring Architecture</div>', unsafe_allow_html=True)
+cols = st.columns(4)
+for col, (icon, title, weight, color, desc) in zip(cols, [
+    ("🔬","Technical Fit","30%","#7b2fbe","Core skills weighted by proficiency × endorsements × duration. frozenset O(1) lookup over 40+ AI/retrieval skills."),
+    ("📈","Career Quality","35%","#e9c46a","Title fit · Product vs consulting · 29 regex patterns scan career descriptions for real retrieval/ranking work."),
+    ("📡","Behavioral","25%","#4ade80","Last active · Open-to-work · Response rate · Interview completion · Profile completeness score."),
+    ("📍","Logistics","10%","#60a5fa","India/Pune/Noida location · Notice period · Work mode preference · Salary range fit."),
+]):
+    col.markdown(f"""
+    <div class="insight-box" style="height:100%;">
+      <div style="font-size:1.8rem; margin-bottom:8px;">{icon}</div>
+      <div style="font-weight:800; color:{color}; font-size:1.3rem;">{weight}</div>
+      <div style="font-weight:600; color:#f1f5f9; margin:4px 0 10px;">{title}</div>
+      <div style="color:#9d7fd4; font-size:0.82rem; line-height:1.5;">{desc}</div>
+    </div>""", unsafe_allow_html=True)
 
-    # ── Results table ──
-    st.divider()
-    st.subheader(f"🥇 Top {top_n} Candidates")
+# ── LIVE UPLOAD ───────────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🚀 Try It Live</div>', unsafe_allow_html=True)
+st.markdown('<div class="insight-box" style="margin-bottom:16px;"><span style="color:#c9b8e8;">Upload your own <code style="background:#1a0533;padding:2px 6px;border-radius:4px;color:#e9c46a;">candidates.jsonl</code> to rank candidates in real time:</span></div>', unsafe_allow_html=True)
 
-    for i, r in enumerate(top):
-        rank = i + 1
-        with st.container():
-            col_rank, col_id, col_score, col_reason = st.columns([1, 2, 1.5, 6])
-            with col_rank:
-                st.markdown(f'<span class="rank-badge">#{rank}</span>', unsafe_allow_html=True)
-            with col_id:
-                st.markdown(f'`{r["candidate_id"]}`')
-            with col_score:
-                st.markdown(f'<span class="big-score">{r["norm"]:.4f}</span>', unsafe_allow_html=True)
-            with col_reason:
-                st.markdown(f'<span class="title-text">{r["reasoning"]}</span>', unsafe_allow_html=True)
-        if rank < top_n:
-            st.divider()
+sys.path.insert(0, os.path.dirname(__file__))
+try:
+    import rank as R
+    uploaded = st.file_uploader("Upload candidates.jsonl", type=["jsonl","json"], label_visibility="collapsed")
+    if uploaded:
+        with st.spinner("Scoring candidates…"):
+            lines = uploaded.read().decode("utf-8").splitlines()
+            results, errors = [], 0
+            for line in lines:
+                if not line.strip(): continue
+                try: results.append(R.score_candidate(json.loads(line)))
+                except: errors += 1
+        results.sort(key=lambda r: -r["score"])
+        mn, mx = results[-1]["score"], results[0]["score"]
+        rng = mx - mn if mx > mn else 1.0
+        st.success(f"✅ Scored {len(results):,} candidates ({errors} skipped)")
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["candidate_id","rank","score","reasoning"])
+        for i, r in enumerate(results[:100], 1):
+            norm = round(0.20 + (r["score"]-mn)/rng*(0.995-0.20), 4)
+            w.writerow([r["candidate_id"], i, f"{norm:.4f}", r["reasoning"]])
+        st.download_button("⬇️ Download submission.csv", buf.getvalue(), "submission.csv", "text/csv")
+        for i, r in enumerate(results[:20], 1):
+            norm = round(0.20 + (r["score"]-mn)/rng*(0.995-0.20), 4)
+            st.markdown(f"`#{i}` **{r['candidate_id']}** — `{norm:.4f}` — {r['reasoning']}")
+except Exception:
+    st.info("Upload a candidates.jsonl to rank live.")
 
-    # ── Download button ──
-    st.divider()
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["candidate_id", "rank", "score", "reasoning"])
-    for rank, r in enumerate(top, 1):
-        w.writerow([r["candidate_id"], rank, f"{r['norm']:.4f}", r["reasoning"]])
-
-    st.download_button(
-        label="⬇️ Download submission.csv",
-        data=buf.getvalue(),
-        file_name="submission.csv",
-        mime="text/csv",
-    )
-
-else:
-    st.info("👆 Upload a candidates.jsonl file to start ranking. "
-            "You can use a sample of 100–1000 candidates for a quick demo.")
-
-    st.divider()
-    st.subheader("How HybridRank Works")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("""
-**Four scoring dimensions:**
-- 🔬 **Technical Fit (30%)** — Core skills, proficiency, GitHub activity
-- 📈 **Career Quality (35%)** — Title fit, product vs consulting, career history semantic scan
-- 📡 **Behavioral (25%)** — Last active, response rate, open-to-work, interview completion
-- 📍 **Logistics (10%)** — Location, notice period, work mode
-        """)
-    with col2:
-        st.markdown("""
-**Five hard disqualifier rules:**
-- ×0.15 — Keyword stuffer (wrong title + no retrieval history)
-- ×0.65 — Consulting-only background
-- ×0.30 — Outside India, won't relocate
-- ×0.40 — Ghost candidate (inactive >180d)
-- ×0.70 — Recruiter black hole (<10% response rate)
-        """)
+# ── FOOTER ───────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="margin-top:48px; padding:24px; text-align:center; border-top:1px solid #2d1052;">
+  <div style="color:#9d7fd4; font-size:0.85rem;">
+    <strong style="color:#e9c46a;">Team Abhijayati</strong> · अभिजयति · india.runs Challenge<br>
+    <span style="font-size:0.78rem;">Pure Python stdlib · No GPU · No API calls · Fully deterministic · &lt;90s for 100K candidates</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
