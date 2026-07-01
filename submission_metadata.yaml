@@ -11,7 +11,7 @@ team_members:
     role: "ML Engineer / Team Lead"
 
 github_repo: "https://github.com/Vinoo-nadikatla/HybridRank"
-sandbox_link: "https://huggingface.co/spaces/Vinoo123/HybridRank"
+sandbox_link: "https://vinoo123-hybridrank.hf.space/"
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
