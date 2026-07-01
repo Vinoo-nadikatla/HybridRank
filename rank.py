@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-HybridRank v2 - Team Abhijayati
+HybridRank v3 - Team Abhijayati
 india.runs Data & AI Challenge
 
 Four-dimensional scoring tuned for NDCG@10:
   Technical Fit  30%  -- core skills weighted by proficiency x endorsements x duration
   Career Quality 35%  -- title fit, product vs consulting, 31 regex patterns on descriptions
   Behavioral     25%  -- all 23 Redrob signals (recency, responsiveness, market demand)
-  Logistics      10%  -- location, notice period, work mode, salary
+  Logistics      10%  -- location (tiered: Pune/Noida > metro > rest), notice period, work mode, salary
 
-Five hard disqualifier multipliers + honeypot detection.
+Six hard disqualifier multipliers + honeypot detection.
+
+v3 additions:
+  - CV/speech/robotics without NLP/IR penalty (x0.75): explicit JD disqualifier
+  - Tiered location: Pune/Noida=1.0, metro=0.92, rest India+relocate=0.80, rest India=0.70
+  - Salary sanity: handles min > max data bug in real candidates
 
 Run: python rank.py --candidates ./candidates.jsonl --out ./submission.csv
 Requirements: Python 3.8+ stdlib only. No pip installs needed.
@@ -72,6 +77,15 @@ IR_FOUNDATION_SKILLS = frozenset({
     "elasticsearch", "opensearch", "learning to rank", "ltr",
     "information retrieval", "dense retrieval", "hybrid search",
     "ranking", "reranking", "retrieval",
+})
+# CV/speech/robotics skills - JD explicit disqualifier when no NLP/IR exposure
+CV_SPEECH_SKILLS = frozenset({
+    "computer vision", "image classification", "object detection", "object recognition",
+    "opencv", "yolo", "yolov5", "yolov8", "image segmentation", "image processing",
+    "speech recognition", "automatic speech recognition", "asr", "speech synthesis",
+    "text-to-speech", "tts", "voice recognition", "speaker identification",
+    "robotics", "ros", "robot operating system", "slam",
+    "autonomous driving", "lidar", "point cloud",
 })
 
 TITLE_SCORES = {
@@ -143,10 +157,13 @@ NON_CODING_TITLES = frozenset({
     "chief", "vp ", "vice president", "director of", "head of",
     "cto", "ceo", "coo", "chief technology",
 })
-PREFERRED_CITIES = frozenset({
-    "pune", "noida", "mumbai", "delhi", "gurugram", "gurgaon",
+# JD says "Pune/Noida preferred" -> tier-1; other metros -> tier-2
+TIER1_CITIES = frozenset({"pune", "noida"})
+TIER2_CITIES = frozenset({
+    "mumbai", "delhi", "gurugram", "gurgaon",
     "hyderabad", "bengaluru", "bangalore", "ncr", "chennai",
 })
+PREFERRED_CITIES = TIER1_CITIES | TIER2_CITIES  # backward compat
 RELEVANT_CERTS = frozenset({
     "aws certified machine learning", "google professional machine learning",
     "tensorflow developer", "azure ai engineer", "databricks certified",
@@ -271,6 +288,12 @@ def score_candidate(candidate):
     has_ir_foundations = bool(IR_FOUNDATION_SKILLS & skill_names)
     lc_penalty = 0.82 if (has_rag_wrappers and not has_ir_foundations) else 1.0
 
+    # CV/speech/robotics without NLP/IR exposure - explicit JD disqualifier
+    # "People whose primary expertise is computer vision, speech, or robotics without
+    #  significant NLP/IR exposure. We respect your work but you'd be re-learning here."
+    has_cv_speech = bool(CV_SPEECH_SKILLS & skill_names)
+    cv_penalty = 0.75 if (has_cv_speech and not has_ir_foundations) else 1.0
+
     tech_score = min(1.0, (
         0.50 * core_score +
         0.10 * breadth_bonus +
@@ -278,7 +301,7 @@ def score_candidate(candidate):
         0.08 * assess_score +
         0.10 * github_score +
         0.10 * assess_depth
-    ) * wrong_penalty * lc_penalty)
+    ) * wrong_penalty * lc_penalty * cv_penalty)
 
     # ===========================================================================
     # DIMENSION 2 - CAREER QUALITY (35%)
@@ -364,12 +387,16 @@ def score_candidate(candidate):
     elif is_pure_research:
         company_score = 0.60
     elif has_product:
-        company_score = 1.0
+        # Product company bonus is gated on title relevance:
+        # A Frontend/Java dev at Google is still not a fit for this JD
+        title_gate = min(1.0, max(0.60, title_score / 0.70))
+        company_score = 1.0 * title_gate
     else:
         company_score = 0.72
 
-    # Description scan
-    combined_desc = " ".join(j.get("description", "") for j in career)
+    # Description scan — career descriptions + profile summary + headline (all rich text)
+    summary_text = profile.get("summary", "") + " " + profile.get("headline", "")
+    combined_desc = " ".join(j.get("description", "") for j in career) + " " + summary_text
     desc_matches = sum(1 for p in RANKING_PATTERNS if p.search(combined_desc))
     desc_relevance = min(1.0, desc_matches / 6.0)
 
@@ -493,13 +520,16 @@ def score_candidate(candidate):
     location = nrm(profile.get("location", ""))
     relocate = signals.get("willing_to_relocate", False)
     in_india = country == "India"
-    in_pref = any(c in location for c in PREFERRED_CITIES)
+    in_tier1 = any(c in location for c in TIER1_CITIES)   # Pune/Noida preferred
+    in_tier2 = any(c in location for c in TIER2_CITIES)   # other metros
 
+    # Tiered location: JD explicitly says "Pune/Noida preferred"
     loc_score = (
-        1.0 if in_india and in_pref else
-        0.90 if in_india and relocate else
-        0.80 if in_india else
-        0.35 if relocate else 0.10
+        1.00 if in_india and in_tier1 else        # Pune/Noida
+        0.92 if in_india and in_tier2 else        # other India metros
+        0.80 if in_india and relocate else         # rest of India, will relocate
+        0.70 if in_india else                      # rest of India, won't say
+        0.35 if relocate else 0.10                 # abroad
     )
 
     n_notice = signals.get("notice_period_days", 90)
@@ -515,6 +545,9 @@ def score_candidate(candidate):
     sal = signals.get("expected_salary_range_inr_lpa", {}) or {}
     s_min = sal.get("min", 0)
     s_max = sal.get("max", 200)
+    # Sanity: real data bug where min > max - swap them
+    if s_min > s_max and s_max > 0:
+        s_min, s_max = s_max, s_min
     sal_score = (
         1.0 if in_india and s_min <= 60 and s_max >= 20 else
         0.80 if in_india and s_min <= 80 else
@@ -626,6 +659,10 @@ def score_candidate(candidate):
     if has_rag_wrappers and not has_ir_foundations:
         s2.append("LangChain only - no IR fundamentals")
 
+    if has_cv_speech and not has_ir_foundations:
+        cv_skills = list(CV_SPEECH_SKILLS & skill_names)[:2]
+        s2.append("CV/speech background (" + ", ".join(cv_skills) + ") without NLP/IR foundation")
+
     reasoning = "; ".join(s1) + ". " + "; ".join(s2) + "."
     return {
         "candidate_id": cid,
@@ -648,29 +685,29 @@ def process_chunk(lines):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="HybridRank v2 - Team Abhijayati")
+    parser = argparse.ArgumentParser(description="HybridRank v3 - Team Abhijayati")
     parser.add_argument("--candidates", default="./candidates.jsonl")
     parser.add_argument("--out", default="./submission.csv")
     parser.add_argument("--top", type=int, default=100)
     args = parser.parse_args()
 
-    print("[HybridRank v2] Reading " + args.candidates + " ...")
+    print("[HybridRank v3] Reading " + args.candidates + " ...")
     with open(args.candidates, "r", encoding="utf-8") as f:
         all_lines = f.readlines()
-    print("[HybridRank v2] Loaded " + str(len(all_lines)) + " candidates.")
+    print("[HybridRank v3] Loaded " + str(len(all_lines)) + " candidates.")
 
     n_cpu = max(1, cpu_count() - 1)
     chunk_size = max(1000, len(all_lines) // n_cpu)
     chunks = [all_lines[i:i + chunk_size]
               for i in range(0, len(all_lines), chunk_size)]
-    print("[HybridRank v2] Scoring across " + str(len(chunks)) +
+    print("[HybridRank v3] Scoring across " + str(len(chunks)) +
           " chunks on " + str(n_cpu) + " CPU cores...")
 
     with Pool(processes=n_cpu) as pool:
         chunk_results = pool.map(process_chunk, chunks)
 
     results = [r for chunk in chunk_results for r in chunk]
-    print("[HybridRank v2] Scored " + str(len(results)) +
+    print("[HybridRank v3] Scored " + str(len(results)) +
           " candidates. Selecting top " + str(args.top) + "...")
 
     top = sorted(results, key=lambda r: (-r["score"], r["candidate_id"]))[:args.top]
@@ -693,7 +730,7 @@ def main():
                 r["reasoning"],
             ])
 
-    print("[HybridRank v2] Done! -> " + str(out_path))
+    print("[HybridRank v3] Done! -> " + str(out_path))
     print("\nTop 10:")
     for i, r in enumerate(top[:10], 1):
         print("  " + str(i).rjust(3) + ". " + r["candidate_id"] +
