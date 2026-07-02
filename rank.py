@@ -17,7 +17,10 @@ v3 additions:
   - Salary sanity: handles min > max data bug in real candidates
 
 Run: python rank.py --candidates ./candidates.jsonl --out ./submission.csv
-Requirements: Python 3.8+ stdlib only. No pip installs needed.
+Optional semantic boost (run precompute.py first):
+    pip install sentence-transformers numpy
+    python precompute.py --candidates ./candidates.jsonl
+Requirements: Python 3.8+ stdlib only for core ranker. numpy optional for semantic boost.
 Runtime: ~90 seconds for 100,000 candidates on a single CPU core.
 """
 
@@ -25,6 +28,16 @@ import argparse, csv, json, re
 from datetime import date, datetime
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
+
+# Semantic embeddings (optional — loaded if precompute.py was run)
+try:
+    import numpy as np
+    _NP_AVAILABLE = True
+except ImportError:
+    _NP_AVAILABLE = False
+
+# Global semantic score lookup (populated in main() if embeddings exist)
+_SEM_SCORES = {}   # candidate_id -> float cosine similarity to JD query
 
 REFERENCE_DATE = date(2026, 6, 25)
 
@@ -140,12 +153,21 @@ CONSULTING_FIRMS = frozenset({
 PRODUCT_SIGNALS = frozenset({
     "google", "meta", "microsoft", "amazon", "apple", "netflix", "uber", "airbnb",
     "stripe", "openai", "anthropic", "cohere", "deepmind", "mistral", "stability ai",
+    "linkedin", "twitter", "pinterest", "spotify", "doordash", "lyft", "salesforce",
+    "adobe", "nvidia", "qualcomm", "samsung research",
     "paytm", "flipkart", "ola", "swiggy", "zomato", "meesho", "razorpay", "zepto",
     "cred", "phonepe", "groww", "navi", "slice", "redrob", "freshworks", "zoho",
     "chargebee", "browserstack", "atlassian", "databricks", "snowflake", "hugging face",
     "sarvam", "niramai", "haptik", "uniphore", "vernacular", "kognitos",
     "yellow.ai", "observe.ai", "genpact ai", "sigmoid", "fractal analytics",
     "mu sigma", "tiger analytics", "latentview", "sprinklr", "leadsquared",
+    # Indian AI/ML product companies (v4 additions)
+    "dream11", "krutrim", "verloop", "locobuzz", "aganitha", "invideo",
+    "moengage", "clevertap", "inmobi", "sharechat", "moj", "josh",
+    "byju", "unacademy", "vedantu", "upgrad", "scaler", "lido",
+    "lenskart", "nykaa", "myntra", "udaan", "porter", "juspay",
+    "khatabook", "ofbusiness", "infra.market", "moglix", "zetwerk",
+    "rephrase.ai", "mad street den", "wysa", "glance", "dailyhunt",
 })
 RESEARCH_ORGS = frozenset({
     "university", "iit ", "iim ", "iisc", "iiser", "nit ", "bits ",
@@ -313,11 +335,16 @@ def score_candidate(candidate):
     title_score = TITLE_SCORES.get(current_title, 0.10)
     if title_score == 0.10:
         for pat, sc in [
+            # ML/AI titles with parenthetical or dash suffix — common Indian tech company pattern
+            ("(ml)", 0.88), ("(ai)", 0.88), (" - ml", 0.88), (" - ai", 0.88),
+            ("- machine learning", 0.90), ("- nlp", 0.90),
+            # Standard keyword patterns
             ("machine learning", 0.90), ("ml ", 0.85), ("ai ", 0.85),
             ("data scien", 0.80), ("nlp", 0.90), ("search", 0.70),
             ("recommend", 0.80), ("ranking", 0.80), ("applied scientist", 0.90),
-            ("research engineer", 0.85), ("backend", 0.45), ("software", 0.40),
-            ("data engineer", 0.45),
+            ("research engineer", 0.85), ("conversational ai", 0.85),
+            ("member of technical staff", 0.78),
+            ("backend", 0.45), ("software", 0.40), ("data engineer", 0.45),
         ]:
             if pat in current_title:
                 title_score = max(title_score, sc)
@@ -389,7 +416,8 @@ def score_candidate(candidate):
     elif has_product:
         # Product company bonus is gated on title relevance:
         # A Frontend/Java dev at Google is still not a fit for this JD
-        title_gate = min(1.0, max(0.60, title_score / 0.70))
+        # title_score 0.70+ → full 1.0; 0.40 → 0.57; 0.20 → 0.40
+        title_gate = min(1.0, max(0.40, title_score / 0.70))
         company_score = 1.0 * title_gate
     else:
         company_score = 0.72
@@ -560,14 +588,33 @@ def score_candidate(candidate):
     )
 
     # ===========================================================================
-    # COMPOSITE SCORE
+    # DIMENSION 5 - SEMANTIC SIMILARITY (optional, from precompute.py)
+    # Uses cosine similarity of candidate embedding to JD query embedding.
+    # Falls back to 0.50 neutral if embeddings not available.
     # ===========================================================================
-    raw = (
-        0.30 * tech_score +
-        0.35 * career_score +
-        0.25 * behav_score +
-        0.10 * logistics_score
-    )
+    sem_score = _SEM_SCORES.get(cid, -1.0)
+    has_semantics = sem_score >= 0
+
+    # ===========================================================================
+    # COMPOSITE SCORE
+    # With semantics: redistribute 10% from other dims into semantic
+    # Without semantics: original 30/35/25/10 weights
+    # ===========================================================================
+    if has_semantics:
+        raw = (
+            0.27 * tech_score +
+            0.30 * career_score +
+            0.23 * behav_score +
+            0.08 * logistics_score +
+            0.12 * float(sem_score)    # semantic boost from precomputed embeddings
+        )
+    else:
+        raw = (
+            0.30 * tech_score +
+            0.35 * career_score +
+            0.25 * behav_score +
+            0.10 * logistics_score
+        )
 
     # Hard disqualifier multipliers
     mult = 1.0
@@ -684,12 +731,47 @@ def process_chunk(lines):
     return results
 
 
+def load_semantic_scores(candidates_path):
+    """
+    Load pre-computed semantic scores into the global _SEM_SCORES dict.
+    Files must be in the same directory as candidates.jsonl, produced by precompute.py.
+    Returns True if loaded, False if not available (graceful fallback).
+    """
+    global _SEM_SCORES
+    if not _NP_AVAILABLE:
+        return False
+    base = Path(candidates_path).parent
+    emb_path = base / "candidate_embeddings.npy"
+    ids_path = base / "cand_ids.txt"
+    jd_path  = base / "jd_embedding.npy"
+    if not (emb_path.exists() and ids_path.exists() and jd_path.exists()):
+        return False
+    try:
+        embeddings = np.load(str(emb_path))   # (N, D), already L2-normalised
+        jd_emb     = np.load(str(jd_path))    # (1, D), already L2-normalised
+        cand_ids   = Path(ids_path).read_text().strip().splitlines()
+        scores     = (embeddings @ jd_emb.T).flatten()   # cosine sim (dot product)
+        _SEM_SCORES = dict(zip(cand_ids, scores.tolist()))
+        return True
+    except Exception as e:
+        print("[HybridRank v3] Warning: could not load semantic embeddings:", e)
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="HybridRank v3 - Team Abhijayati")
     parser.add_argument("--candidates", default="./candidates.jsonl")
     parser.add_argument("--out", default="./submission.csv")
     parser.add_argument("--top", type=int, default=100)
     args = parser.parse_args()
+
+    # Load pre-computed semantic embeddings (from precompute.py) if available
+    sem_loaded = load_semantic_scores(args.candidates)
+    if sem_loaded:
+        print("[HybridRank v3] Semantic embeddings loaded: " + str(len(_SEM_SCORES)) + " candidates.")
+    else:
+        print("[HybridRank v3] No semantic embeddings found — using rule-based scoring only.")
+        print("[HybridRank v3] (Run precompute.py first for semantic boost)")
 
     print("[HybridRank v3] Reading " + args.candidates + " ...")
     with open(args.candidates, "r", encoding="utf-8") as f:
@@ -730,12 +812,13 @@ def main():
                 r["reasoning"],
             ])
 
-    print("[HybridRank v3] Done! -> " + str(out_path))
+    mode = "WITH semantics" if sem_loaded else "rule-based only"
+    print("[HybridRank v3] Done! (" + mode + ") -> " + str(out_path))
     print("\nTop 10:")
     for i, r in enumerate(top[:10], 1):
         print("  " + str(i).rjust(3) + ". " + r["candidate_id"] +
               "  " + "{:.4f}".format(r["norm"]) +
-              "  " + r["reasoning"][:85] + "...")
+              "  " + r["reasoning"][:80] + "...")
 
     hp_in_top = sum(1 for r in top if r["score"] <= 0.001)
     print("\nHoneypot rate in top " + str(args.top) + ": " +
